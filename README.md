@@ -9,7 +9,7 @@ The following instructions have been created to allow a Spinnaker Operator to co
 1. Relatively simple install of Vault on Kubernetes using the awesome [vault-helm](https://github.com/hashicorp/vault-helm) project
 1. Configure Vault for Spinnaker dynamic accounts by creating secret stores, policies, roles, authentication methods, and AppRoles to be used for authentication
 1. Configure Spinnaker to utilize vault for dynamic accounts
-1. Create example Terraform repo to create new infrastructure and add details into Vault secret
+1. Create an example Terraform repo to create new infrastructure and add details into Vault secret
 1. Create Custom Job Stage from Run Job Manifest to facilitate adding new account into dynamic accounts by the Spinnaker Operators by pulling newly added infrastructure credentials to the master dynamic accounts credential list
 
 ## Prerequisites
@@ -74,7 +74,7 @@ You can install the vault cli locally through brew or you can log into your vaul
 
 `brew install vault`
 
-Setup environment variables for VAULT_ADDR and VAULT_TOKEN to point to your vault installation
+Setup environment variables for `VAULT_ADDR` and `VAULT_TOKEN` to point to your vault installation
 
 You may need to log into your vault if you haven't already
 
@@ -252,6 +252,8 @@ kubectl -n default get secret $(cat .dynamic-accounts-vault-auth-sa-name) \
     -o jsonpath="{.data.token}" | base64 --decode > .dynamic-accounts-vault-auth-sa-jwt-token
 kubectl -n default get secret $(cat .dynamic-accounts-vault-auth-sa-name) \
     -o jsonpath="{.data['ca\.crt']}" | base64 --decode > .dynamic-accounts-vault-auth-sa-ca-crt
+# Assumption is the kubeconfig file ONLY has the required server in the list. If the required 
+#   server is not the first entry this may not return the correct server address so adjust accordingly
 kubectl config view \
     -o jsonpath="{.clusters[0].cluster.server}" > .dynamic-accounts-vault-auth-k8s-host
 ```
@@ -282,4 +284,268 @@ vault write \
     bound_service_account_namespaces="spinnaker" \
     policies="dynamic_accounts_rw_policy" \
     ttl="1680h"
+```
+
+### Populate the Vault Dynamic Account Secret
+
+You will need a JSON representation of the existing kubeconfig file that Spinnaker is currently using to deploy because when you enable dynamic accounts the contents of the vault secret will take the place of any configuration halyard may have previously set under the `kubernetes.account` configuration. Vault only supports JSON objects so you will need to convert the existing yaml for the kubeconfig into JSON.
+
+A pretty nice YAML to JSON converter can be [found here](https://codebeautify.org/yaml-to-json-xml-csv)
+
+We need to get the existing account configuration(s) from your halyard config file and convert that/them from YAML into JSON.
+
+Here is an example of the relevant parts of the halyard config:
+
+We can copy everything from the `kubernetes` section all the way until before the `primaryAccount` and it should look like this:
+
+```yaml
+    kubernetes:
+      enabled: true
+      accounts:
+      - name: spin-cluster-account
+        requiredGroupMembership: []
+        providerVersion: V2
+        permissions:
+          READ:
+          - spingo-spinnaker-admins
+          WRITE:
+          - spingo-spinnaker-admins
+        dockerRegistries:
+        - accountName: docker-registry
+          namespaces: []
+        configureImagePullSecrets: true
+        cacheThreads: 1
+        namespaces: []
+        omitNamespaces: []
+        kinds: []
+        omitKinds: []
+        customResources: []
+        cachingPolicies: []
+        kubeconfigFile: /spinnaker/.kube/spinnaker-us-east1.config
+        oAuthScopes: []
+        onlySpinnakerManaged: true
+```
+
+But YAML very much cares about alignment so we need to line up the `kubernetes` element with the beginning of the line like this:
+
+```yaml
+kubernetes:
+  enabled: true
+  accounts:
+  - name: spin-cluster-account
+    requiredGroupMembership: []
+    providerVersion: V2
+    permissions:
+      READ:
+      - spingo-spinnaker-admins
+      WRITE:
+      - spingo-spinnaker-admins
+    dockerRegistries:
+    - accountName: docker-registry
+      namespaces: []
+    configureImagePullSecrets: true
+    cacheThreads: 1
+    namespaces: []
+    omitNamespaces: []
+    kinds: []
+    omitKinds: []
+    customResources: []
+    cachingPolicies: []
+    kubeconfigFile: /spinnaker/.kube/spinnaker-us-east1.config
+    oAuthScopes: []
+    onlySpinnakerManaged: true
+```
+
+Vault doesn't have the ability to read from files so the existing `kubeconfigFile` will not work. Luckily, there is a little known property we can utilize called `kubeconfigContents` and we can place the contents of the kubeconfig file under this property like this (obviously replace the redacted information with the correct information):
+
+```yaml
+kubernetes:
+  enabled: true
+  accounts:
+    - name: spin-cluster-account
+      requiredGroupMembership: []
+      providerVersion: V2
+      permissions:
+        READ:
+          - spingo-spinnaker-admins
+        WRITE:
+          - spingo-spinnaker-admins
+      dockerRegistries:
+        - accountName: docker-registry
+          namespaces: []
+      configureImagePullSecrets: true
+      cacheThreads: 1
+      namespaces: []
+      omitNamespaces: []
+      kinds: []
+      omitKinds: []
+      customResources: []
+      cachingPolicies: []
+      kubeconfigContents:
+        apiVersion: v1
+        clusters:
+          - cluster:
+              certificate-authority-data: ....REDACTED....
+              server: 'https://....REDACTED....'
+            name: ....REDACTED....
+        contexts:
+          - context:
+              cluster: ....REDACTED....
+              namespace: default
+              user: spinnaker-user
+            name: ....REDACTED....
+        current-context: ....REDACTED....
+        kind: Config
+        preferences: {}
+        users:
+          - name: spinnaker-user
+            user:
+              token: ....REDACTED....
+```
+
+So, once we convert to JSON for storage into vault we see this:
+
+```json
+{
+	"kubernetes": {
+		"enabled": true,
+		"accounts": [
+			{
+				"name": "spin-cluster-account",
+				"requiredGroupMembership": [],
+				"providerVersion": "V2",
+				"permissions": {
+					"READ": [
+						"spingo-spinnaker-admins"
+					],
+					"WRITE": [
+						"spingo-spinnaker-admins"
+					]
+				},
+				"dockerRegistries": [
+					{
+						"accountName": "docker-registry",
+						"namespaces": []
+					}
+				],
+				"configureImagePullSecrets": true,
+				"cacheThreads": 1,
+				"namespaces": [],
+				"omitNamespaces": [],
+				"kinds": [],
+				"omitKinds": [],
+				"customResources": [],
+				"cachingPolicies": [],
+				"kubeconfigContents": {
+					"apiVersion": "v1",
+					"clusters": [
+						{
+							"cluster": {
+								"certificate-authority-data": "....REDACTED....",
+								"server": "https://....REDACTED...."
+							},
+							"name": "....REDACTED...."
+						}
+					],
+					"contexts": [
+						{
+							"context": {
+								"cluster": "....REDACTED....",
+								"namespace": "default",
+								"user": "spinnaker-user"
+							},
+							"name": "....REDACTED...."
+						}
+					],
+					"current-context": "....REDACTED....",
+					"kind": "Config",
+					"preferences": {},
+					"users": [
+						{
+							"name": "spinnaker-user",
+							"user": {
+								"token": "....REDACTED...."
+							}
+						}
+					]
+				}
+			}
+		]
+	}
+}
+```
+
+Your dynamic account secret will need to reside inside vault under the location of the policy we created previously
+
+```sh
+cat << DYN_ACCT_START | vault kv put secret/dynamic_accounts/spinnaker -
+{
+	"kubernetes": {
+		"enabled": true,
+		"accounts": [
+			{
+				"name": "spin-cluster-account",
+				"requiredGroupMembership": [],
+				"providerVersion": "V2",
+				"permissions": {
+					"READ": [
+						"spingo-spinnaker-admins"
+					],
+					"WRITE": [
+						"spingo-spinnaker-admins"
+					]
+				},
+				"dockerRegistries": [
+					{
+						"accountName": "docker-registry",
+						"namespaces": []
+					}
+				],
+				"configureImagePullSecrets": true,
+				"cacheThreads": 1,
+				"namespaces": [],
+				"omitNamespaces": [],
+				"kinds": [],
+				"omitKinds": [],
+				"customResources": [],
+				"cachingPolicies": [],
+				"kubeconfigContents": {
+					"apiVersion": "v1",
+					"clusters": [
+						{
+							"cluster": {
+								"certificate-authority-data": "....REDACTED....",
+								"server": "https://....REDACTED...."
+							},
+							"name": "....REDACTED...."
+						}
+					],
+					"contexts": [
+						{
+							"context": {
+								"cluster": "....REDACTED....",
+								"namespace": "default",
+								"user": "spinnaker-user"
+							},
+							"name": "....REDACTED...."
+						}
+					],
+					"current-context": "....REDACTED....",
+					"kind": "Config",
+					"preferences": {},
+					"users": [
+						{
+							"name": "spinnaker-user",
+							"user": {
+								"token": "....REDACTED...."
+							}
+						}
+					]
+				}
+			}
+		]
+	}
+}
+
+DYN_ACCT_START
 ```
