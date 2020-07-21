@@ -1,0 +1,75 @@
+global:
+  enabled: true
+  tlsDisable: false
+
+injector:
+  image:
+    tag: "0.4.0"
+  agentImage:
+    tag: "1.4.2"
+  namespaceSelector:
+     matchLabels:
+       sidecar-injector: enabled
+
+ui:
+  enabled: true
+  serviceType: LoadBalancer
+  externalPort: 443
+  loadBalancerIP: 34.74.104.198 # change this to your load balancer IP or comment the line for one to be created
+
+server:
+  image:
+    repository: "vault"
+    tag: "1.4.2"
+
+  extraEnvironmentVars:
+    VAULT_ADDR: http://127.0.0.1:8200
+
+  extraVolumes:
+    - type: secret
+      name: vault-tls
+
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app: {{ template "vault.name" . }}
+              release: "{{ .Release.Name }}"
+              component: server
+          topologyKey: kubernetes.io/hostname
+
+  service:
+    enabled: true
+
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          address     = "127.0.0.1:8200"
+          tls_disable = "true"
+        }
+
+        log_level = "warn"
+
+        max_lease_ttl = "1680h" # 70 days
+
+        listener "tcp" {
+          address = "POD_IP:8200"
+          tls_cert_file = "/vault/userconfig/vault-tls/vault.pem"
+          tls_key_file  = "/vault/userconfig/vault-tls/vault.key"
+
+          tls_disable_client_certs = true
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
