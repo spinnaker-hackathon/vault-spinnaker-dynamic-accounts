@@ -356,7 +356,7 @@ kubernetes:
     onlySpinnakerManaged: true
 ```
 
-Vault doesn't have the ability to read from files so the existing `kubeconfigFile` will not work. Luckily, there is a little known property we can utilize called `kubeconfigContents` and we can place the contents of the kubeconfig file under this property like this (obviously replace the redacted information with the correct information):
+Vault doesn't have the ability to read from files so the existing `kubeconfigFile` will not work. Luckily, there is a little-known property we can utilize called `kubeconfigContents` and we can place the contents of the kubeconfig file under this property like this (replace the redacted information with the correct information):
 
 ```yaml
 kubernetes:
@@ -381,26 +381,7 @@ kubernetes:
       omitKinds: []
       customResources: []
       cachingPolicies: []
-      kubeconfigContents:
-        apiVersion: v1
-        clusters:
-          - cluster:
-              certificate-authority-data: ....REDACTED....
-              server: 'https://....REDACTED....'
-            name: ....REDACTED....
-        contexts:
-          - context:
-              cluster: ....REDACTED....
-              namespace: default
-              user: spinnaker-user
-            name: ....REDACTED....
-        current-context: ....REDACTED....
-        kind: Config
-        preferences: {}
-        users:
-          - name: spinnaker-user
-            user:
-              token: ....REDACTED....
+      kubeconfigContents: "{\"apiVersion\":\"v1\",\"clusters\":[{\"cluster\":{\"certificate-authority-data\":\"....REDACTED....\",\"server\":\"https://....REDACTED....\"},\"name\":\"....REDACTED....\"}],\"contexts\":[{\"context\":{\"cluster\":\"....REDACTED....\",\"namespace\":\"default\",\"user\":\"spinnaker-user\"},\"name\":\"....REDACTED....\"}],\"current-context\":\"....REDACTED....\",\"kind\":\"Config\",\"preferences\":{},\"users\":[{\"name\":\"spinnaker-user\",\"user\":{\"token\":\"....REDACTED....\"}}]}"
 ```
 
 So, once we convert to JSON for storage into vault we see this:
@@ -436,39 +417,7 @@ So, once we convert to JSON for storage into vault we see this:
 				"omitKinds": [],
 				"customResources": [],
 				"cachingPolicies": [],
-				"kubeconfigContents": {
-					"apiVersion": "v1",
-					"clusters": [
-						{
-							"cluster": {
-								"certificate-authority-data": "....REDACTED....",
-								"server": "https://....REDACTED...."
-							},
-							"name": "....REDACTED...."
-						}
-					],
-					"contexts": [
-						{
-							"context": {
-								"cluster": "....REDACTED....",
-								"namespace": "default",
-								"user": "spinnaker-user"
-							},
-							"name": "....REDACTED...."
-						}
-					],
-					"current-context": "....REDACTED....",
-					"kind": "Config",
-					"preferences": {},
-					"users": [
-						{
-							"name": "spinnaker-user",
-							"user": {
-								"token": "....REDACTED...."
-							}
-						}
-					]
-				}
+				"kubeconfigContents": "{\"apiVersion\":\"v1\",\"clusters\":[{\"cluster\":{\"certificate-authority-data\":\"....REDACTED....\",\"server\":\"https://....REDACTED....\"},\"name\":\"....REDACTED....\"}],\"contexts\":[{\"context\":{\"cluster\":\"....REDACTED....\",\"namespace\":\"default\",\"user\":\"spinnaker-user\"},\"name\":\"....REDACTED....\"}],\"current-context\":\"....REDACTED....\",\"kind\":\"Config\",\"preferences\":{},\"users\":[{\"name\":\"spinnaker-user\",\"user\":{\"token\":\"....REDACTED....\"}}]}"
 			}
 		]
 	}
@@ -509,39 +458,7 @@ cat << DYN_ACCT_START | vault kv put secret/dynamic_accounts/spinnaker -
 				"omitKinds": [],
 				"customResources": [],
 				"cachingPolicies": [],
-				"kubeconfigContents": {
-					"apiVersion": "v1",
-					"clusters": [
-						{
-							"cluster": {
-								"certificate-authority-data": "....REDACTED....",
-								"server": "https://....REDACTED...."
-							},
-							"name": "....REDACTED...."
-						}
-					],
-					"contexts": [
-						{
-							"context": {
-								"cluster": "....REDACTED....",
-								"namespace": "default",
-								"user": "spinnaker-user"
-							},
-							"name": "....REDACTED...."
-						}
-					],
-					"current-context": "....REDACTED....",
-					"kind": "Config",
-					"preferences": {},
-					"users": [
-						{
-							"name": "spinnaker-user",
-							"user": {
-								"token": "....REDACTED...."
-							}
-						}
-					]
-				}
+				"kubeconfigContents": "{"apiVersion":"v1","clusters":[{"cluster":{"certificate-authority-data":"....REDACTED....","server":"https://....REDACTED...."},"name":"....REDACTED...."}],"contexts":[{"context":{"cluster":"....REDACTED....","namespace":"default","user":"spinnaker-user"},"name":"....REDACTED...."}],"current-context":"....REDACTED....","kind":"Config","preferences":{},"users":[{"name":"spinnaker-user","user":{"token":"....REDACTED...."}}]}"
 			}
 		]
 	}
@@ -549,3 +466,4 @@ cat << DYN_ACCT_START | vault kv put secret/dynamic_accounts/spinnaker -
 
 DYN_ACCT_START
 ```
+
