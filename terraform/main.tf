@@ -26,18 +26,19 @@ resource "random_string" "random" {
   special = false
 }
 
-# resource "vault_generic_secret" "secret" {
-#   path = cubbyhole/foo
-#   data_json = <<EOT
-# {
-#   "ca_cert": "blah",
-#   "k8s_host": "awesome",
-#   "k8s_name": "blah_server",
-#   "k8s_username": "spinnaker-user",
-#   "user_token": "super_secret"
-# }
-# EOT
-# }
+resource "vault_generic_secret" "dynamic_accounts" {
+  path = secret/write/dynamic_accounts/intake
+  data_json = <<EOF
+  {
+    "ca_cert": "${google_container_cluster.kube-cluster.master_auth.0.cluster_ca_certificate}",
+    "k8s_host": "${google_container_cluster.kube-cluster.endpoint}",
+    "k8s_name": "blah_server",
+    "k8s_username": "${google_container_cluster.kube-cluster.master_auth.0.username}",
+    "user_token": "${data.google_client_config.default.access_token}"
+  }
+  EOF
+  }
+
 data "google_client_config" "default" {
     provider                      = "google-beta"
 }
@@ -544,23 +545,23 @@ resource "google_container_cluster" "kube-cluster" {
 # output "metrics_yml_files_map" {
 #   value = module.metrics_setup.metrics_yml_files_map
 # }
-output "ca_certificate" {
-  value     = "${google_container_cluster.kube-cluster.master_auth.0.cluster_ca_certificate}"
- sensitive = false
-}
-output "username" {
-  value     = "${google_container_cluster.kube-cluster.master_auth.0.username}"
- sensitive = false
-}
-output "password" {
-  value     = "${google_container_cluster.kube-cluster.master_auth.0.password}"
- sensitive = false
-}
-output "host" {
-  value     = "${google_container_cluster.kube-cluster.endpoint}"
- sensitive = false
-}
-output "token" {
-  value     = "${data.google_client_config.default.access_token}"
- sensitive = false
-}
+# output "ca_certificate" {
+#   value     = "${google_container_cluster.kube-cluster.master_auth.0.cluster_ca_certificate}"
+#  sensitive = false
+# }
+# output "username" {
+#   value     = "${google_container_cluster.kube-cluster.master_auth.0.username}"
+#  sensitive = false
+# }
+# output "password" {
+#   value     = "${google_container_cluster.kube-cluster.master_auth.0.password}"
+#  sensitive = false
+# }
+# output "host" {
+#   value     = "${google_container_cluster.kube-cluster.endpoint}"
+#  sensitive = false
+# }
+# output "token" {
+#   value     = "${data.google_client_config.default.access_token}"
+#  sensitive = false
+# }
