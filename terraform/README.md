@@ -1,0 +1,2 @@
+Before spinning up cluster you need generated terraform.json file. This has to be a direct file location because it is needed before interpolation. Look at 'terraform.tfvars'
+Also Vault token should be exported 'export VAULT_TOKEN='
