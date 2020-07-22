@@ -458,7 +458,7 @@ cat << DYN_ACCT_START | vault kv put secret/dynamic_accounts/spinnaker -
 				"omitKinds": [],
 				"customResources": [],
 				"cachingPolicies": [],
-				"kubeconfigContents": "{"apiVersion":"v1","clusters":[{"cluster":{"certificate-authority-data":"....REDACTED....","server":"https://....REDACTED...."},"name":"....REDACTED...."}],"contexts":[{"context":{"cluster":"....REDACTED....","namespace":"default","user":"spinnaker-user"},"name":"....REDACTED...."}],"current-context":"....REDACTED....","kind":"Config","preferences":{},"users":[{"name":"spinnaker-user","user":{"token":"....REDACTED...."}}]}"
+				"kubeconfigContents": "{\"apiVersion\":\"v1\",\"clusters\":[{\"cluster\":{\"certificate-authority-data\":\"....REDACTED....\",\"server\":\"https://....REDACTED....\"},\"name\":\"....REDACTED....\"}],\"contexts\":[{\"context\":{\"cluster\":\"....REDACTED....\",\"namespace\":\"default\",\"user\":\"spinnaker-user\"},\"name\":\"....REDACTED....\"}],\"current-context\":\"....REDACTED....\",\"kind\":\"Config\",\"preferences\":{},\"users\":[{\"name\":\"spinnaker-user\",\"user\":{\"token\":\"....REDACTED....\"}}]}"
 			}
 		]
 	}
