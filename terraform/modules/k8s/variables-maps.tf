@@ -56,7 +56,7 @@ variable "node_pool_options" {
     auto_repair           = true # Whether the nodes will be automatically repaired.
     auto_upgrade          = true # Whether the nodes will be automatically upgraded.
     autoscaling_nodes_min = 1    # Minimum number of nodes to create in each zone. Must be >=1 and <= autoscaling_nodes_max.
-    autoscaling_nodes_max = 3    # Maximum number of nodes to create in each zone. Must be >= autoscaling_nodes_min.
+    autoscaling_nodes_max = 1    # Maximum number of nodes to create in each zone. Must be >= autoscaling_nodes_min.
     max_pods_per_node     = 110  # The maximum number of pods per node in this node pool. Note this setting is currently in Beta: https://www.terraform.io/docs/providers/google/r/container_node_pool.html#max_pods_per_node
   }
 }

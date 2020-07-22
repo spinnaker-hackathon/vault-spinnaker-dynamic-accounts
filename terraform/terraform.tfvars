@@ -1,1 +1,1 @@
-terraform_account = "terraform-account"
+terraform_account = "/home/augustas/.config/gcloud/terraform-account"
