@@ -13,9 +13,9 @@ variable "gcp_project" {
   description = "GCP project name"
 }
 
-variable "k8s_name" {
+variable "cluster_name" {
   type        = string
-  default = "new_cluster"
+  default = "my-gke-cluster"
   description = "GCP project name"
 }
 

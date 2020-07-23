@@ -50,7 +50,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(google_container_cluster.kube-cluster.master_auth.0.cluster_ca_certificate)
 }
 resource "google_container_cluster" "kube-cluster" {
-  name     = "my-gke-cluster" //this is the name in console
+  name     = var.cluster_name //this is the name in console
   location = var.gcp_region
 
   # We can't create a cluster with no node pool defined, but we want to only use
@@ -70,7 +70,7 @@ resource "google_container_cluster" "kube-cluster" {
 }
 
 resource "google_container_node_pool" "cluster-nodes" {
-  name       = "my-gke-cluster-node-pool"
+  name       = "${var.cluster_name}-node-pool"
   location   = var.gcp_region
   cluster    = google_container_cluster.kube-cluster.name
   node_count = 1
@@ -133,15 +133,15 @@ data "kubernetes_secret" "service_account_data" {
 }
 
 
-# output "ca_certificate" {
-#   value     = "${google_container_cluster.kube-cluster.master_auth.0.cluster_ca_certificate}"
-#  sensitive = false
-# }
-# output "host" {
-#   value     = "${google_container_cluster.kube-cluster.endpoint}"
-#  sensitive = false
-# }
-# output "token" {
-#   value     = "${data.kubernetes_secret.service_account_data.data.token}"
-#  sensitive = false
-# }
+output "ca_certificate" {
+  value     = "${google_container_cluster.kube-cluster.master_auth.0.cluster_ca_certificate}"
+ sensitive = false
+}
+output "host" {
+  value     = "${google_container_cluster.kube-cluster.endpoint}"
+ sensitive = false
+}
+output "token" {
+  value     = "${data.kubernetes_secret.service_account_data.data.token}"
+ sensitive = false
+}
