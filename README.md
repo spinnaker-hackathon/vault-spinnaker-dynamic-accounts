@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The following instructions have been created to allow a Spinnaker Operator to configure their Spinnaker deployment to utilize dynamic accounts through HashCorp Vault including the ability to add new accounts using a collection of a Run Job Manifest turned into Custom Job Stage, example Terraform git repositories for creating infrastructure and storing credentials within vault, and Spinnaker Pipelines designed specifically for the Spinnaker Operators to use to add new accounts without having to re-deploy Spinnaker through Halyard and able to utilize through automation!
+The following instructions have been created to allow a Spinnaker Operator to configure their Spinnaker deployment to utilize dynamic accounts through HashCorp Vault including the ability to add new accounts using a collection of a Run Job Manifest, example bash script for adding new infrastructure credentials within vault, and Spinnaker Pipelines designed specifically for the Spinnaker Operators to use to add new accounts without having to re-deploy Spinnaker through Halyard and able to utilize through automation!
 
 ## Table of Contents
 
