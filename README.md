@@ -35,8 +35,8 @@ The following instructions have been created to allow a Spinnaker Operator to co
 1. Relatively simple install of Vault on Kubernetes using the awesome [vault-helm](https://github.com/hashicorp/vault-helm) project
 1. Configure Vault for Spinnaker dynamic accounts by creating secret stores, policies, roles, authentication methods, and AppRoles to be used for authentication
 1. Configure Spinnaker to utilize vault for dynamic accounts
-1. Create an example Terraform repo to create new infrastructure and add details into Vault secret
 1. Create Pipeline with a Run Job Manifest to facilitate adding new account into dynamic accounts by the Spinnaker Operators by pulling newly added infrastructure credentials to the master dynamic accounts credential list
+1. Create an example bash script for adding new infrastructure credentials within vault and trigger the dynamic account pipeline
 
 ## Prerequisites
 
