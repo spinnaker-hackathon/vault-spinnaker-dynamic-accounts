@@ -2,6 +2,7 @@
 
 
 
+
 # Inspired by: https://stackoverflow.com/questions/42170380/how-to-add-users-to-kubernetes-kubectl
 # this script creates a service account (spinnaker-user) on a Kubernetes cluster (tested with AWS EKS 1.9)
 # prereqs: a kubectl ver 1.10 installed and proper configuration of the heptio authenticator
@@ -58,6 +59,12 @@ need "vault"
 need "base64"
 need "kubectl"
 need "curl"
+need "sed"
+need "gcloud"
+
+if ! [ -n "$SPIN_WEBHOOK" ]; then
+  die "Need envirnment variable set for Spinnaker webhook to trigger dynamic accounts pipeline SPIN_WEBHOOK"
+fi
 
 # make sure that a ~/.kube/config file exists or $KUBECONFIG is set before moving forward
 if ! { [ -n "$KUBECONFIG" ] || [ -f ~/.kube/config ]; } ; then
@@ -144,11 +151,12 @@ CLUSTER_LOCATION=$(gcloud container clusters list --filter="endpoint:$CLUSTER_EN
 CLUSTER_NAME=$(gcloud container clusters list --filter="endpoint:$CLUSTER_ENDPOINT_IP" --format="value(name)" 2>/dev/null)
 
 CLUSTER_ID="gke_${PROJECT}_${CLUSTER_LOCATION}_${CLUSTER_NAME}_${NAMESPACE}"
-CONFIG_FILE="$CLUSTER_ID.config"
+
+CLUSTER_CERT="$(kubectl get secret "$secret" --namespace $NAMESPACE -o json | jq -r '.data["ca.crt"]')"
 
 cat << EOF | vault kv put secret/dynamic_accounts/intake/"$CLUSTER_ID" -
 {
-  "ca_cert": "$(< ca.crt)",
+  "ca_cert": "$CLUSTER_CERT",
   "k8s_host": "$endpoint",
   "k8s_name": "$CLUSTER_ID",
   "k8s_username": "spinnaker-user",
@@ -156,7 +164,6 @@ cat << EOF | vault kv put secret/dynamic_accounts/intake/"$CLUSTER_ID" -
 }
 
 EOF
-```
 
 if [ "$?" -eq 0 ]; then
     echo "Uploaded details to Vault intake location"
@@ -165,4 +172,4 @@ else
     exit 1
 fi
 
-
+curl -s --request POST --data '{"parameters":{"intake_secret_loc":"'"$CLUSTER_ID"'"}}' -H 'Content-Type:application/json'  "$SPIN_WEBHOOK"
