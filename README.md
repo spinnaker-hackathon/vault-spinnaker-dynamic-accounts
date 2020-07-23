@@ -4,6 +4,28 @@
 
 The following instructions have been created to allow a Spinnaker Operator to configure their Spinnaker deployment to utilize dynamic accounts through HashCorp Vault including tha ability to add new accounts using a collection of a Run Job Manifest turned into Custom Job Stage, example Terraform git repositories for creating infrastructure and storing credentials within vault, and Spinnaker Pipelines designed specifically for the Spinnaker Operators to use to add new accounts without having to re-deploy Spinnaker through Halyard and able to utilize through automation!
 
+## Table of Contents
+
+<!-- TOC -->
+- [Introduction](#introduction)
+- [Table of Contents](#table-of-contents)
+- [Goals](#goals)
+- [Prerequisites](#prerequisites)
+- [Relatively easy Vault-Helm Example Installation](#relatively-easy-vault-helm-example-installation)
+	- [Description](#description)
+	- [Instructions](#instructions)
+- [Configure Vault](#configure-vault)
+	- [Login to vault](#login-to-vault)
+	- [Create policies for dynamic accounts](#create-policies-for-dynamic-accounts)
+	- [Create read-only app role for Spinnaker](#create-read-only-app-role-for-spinnaker)
+	- [Create read-write approle for Spinnaker](#create-read-write-approle-for-spinnaker)
+	- [Setup Kubernetes Authentication within Vault](#setup-kubernetes-authentication-within-vault)
+		- [Description](#description)
+		- [Vault Kubernetes Authentication Installation Instructions](#vault-kubernetes-authentication-installation-instructions)
+	- [Populate the Vault Dynamic Account Secret](#populate-the-vault-dynamic-account-secret)
+- [Configure Spinnaker](#configure-spinnaker)
+<!-- /TOC -->
+
 ## Goals
 
 1. Relatively simple install of Vault on Kubernetes using the awesome [vault-helm](https://github.com/hashicorp/vault-helm) project
