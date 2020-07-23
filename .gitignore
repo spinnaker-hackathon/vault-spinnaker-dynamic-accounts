@@ -19,3 +19,4 @@
 #ignore created vault tokens
 
 .dynamic-accounts-*
+ca.crt
