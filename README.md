@@ -66,8 +66,8 @@ metadata:
   namespace: vault
 type: Opaque
 data:
-  vault.pem: $(cat /path/to/certbot/cert_wildcard.crt | base64 -w 0)
-  vault.key: $(cat /path/to/certbot/cert_wildcard.key | base64 -w 0)
+  vault.pem: $(< /path/to/certbot/cert_wildcard.crt | base64 -w 0)
+  vault.key: $(< /path/to/certbot/cert_wildcard.key | base64 -w 0)
 SECRET_EOF
 ```
 
@@ -119,7 +119,7 @@ vault secrets enable \
     kv
 ```
 
-Create read-write vault policy for dynamic accounts
+Create read-only vault policy for dynamic accounts
 
 ```sh
 cat << VAULT_POLICY | vault policy write dynamic_accounts_ro_policy -
@@ -167,7 +167,7 @@ VAULT_POLICY
 
 ```
 
-Enable approle authentication within Vault to generate token to be used by Spinnaker to access the dynamic accounts secret (NEVER USE THE ROOT TOKEN FOR ANYTHING OTHER THAN SETTING UP BETTER OPTIONS) and for approle to be used to create tokens for sending new account credentials to the intake vault secret
+Enable approle authentication within Vault to generate a token to be used by Spinnaker to access the dynamic accounts secret (NEVER USE THE ROOT TOKEN FOR ANYTHING OTHER THAN SETTING UP BETTER OPTIONS) as well as for the approle to be used to create tokens for sending new account credentials to the intake vault secret
 
 ```sh
 vault auth enable approle
@@ -203,8 +203,8 @@ Get a token for the read-only approle by using the role-id and the secret-id
 ```sh
 vault write \
     -format=json auth/approle/login \
-    role_id="$(cat .dynamic-accounts-ro-role-id)" \
-    secret_id="$(cat .dynamic-accounts-ro-role-secret-id)" \
+    role_id="$(< .dynamic-accounts-ro-role-id)" \
+    secret_id="$(< .dynamic-accounts-ro-role-secret-id)" \
     | jq -r '.auth.client_token' > .dynamic-accounts-ro-token
 ```
 
@@ -237,8 +237,8 @@ Get a token for the read-write approle by using the role-id and the secret-id
 ```sh
 vault write \
     -format=json auth/approle/login \
-    role_id="$(cat .dynamic-accounts-rw-role-id)" \
-    secret_id="$(cat .dynamic-accounts-rw-role-secret-id)" \
+    role_id="$(< .dynamic-accounts-rw-role-id)" \
+    secret_id="$(< .dynamic-accounts-rw-role-secret-id)" \
     | jq -r '.auth.client_token' > .dynamic-accounts-rw-token
 ```
 
@@ -273,8 +273,8 @@ Get a token for the write-only approle by using the role-id and the secret-id
 ```sh
 vault write \
     -format=json auth/approle/login \
-    role_id="$(cat .dynamic-accounts-wo-role-id)" \
-    secret_id="$(cat .dynamic-accounts-wo-role-secret-id)" \
+    role_id="$(< .dynamic-accounts-wo-role-id)" \
+    secret_id="$(< .dynamic-accounts-wo-role-secret-id)" \
     | jq -r '.auth.client_token' > .dynamic-accounts-wo-token
 ```
 
@@ -330,9 +330,9 @@ Getting information from Kubernetes to complete auth method for vault
 ```sh
 kubectl -n default get sa vault-auth \
     -o jsonpath="{.secrets[*]['name']}" > .dynamic-accounts-vault-auth-sa-name
-kubectl -n default get secret $(cat .dynamic-accounts-vault-auth-sa-name) \
+kubectl -n default get secret $(< .dynamic-accounts-vault-auth-sa-name) \
     -o jsonpath="{.data.token}" | base64 --decode > .dynamic-accounts-vault-auth-sa-jwt-token
-kubectl -n default get secret $(cat .dynamic-accounts-vault-auth-sa-name) \
+kubectl -n default get secret $(< .dynamic-accounts-vault-auth-sa-name) \
     -o jsonpath="{.data['ca\.crt']}" | base64 --decode > .dynamic-accounts-vault-auth-sa-ca-crt
 # Assumption is the kubeconfig file ONLY has the required server in the list. If the required 
 #   server is not the first entry this may not return the correct server address so adjust accordingly
@@ -345,9 +345,9 @@ Creating Kubernetes auth config so that vault will be able to validate JWTs for 
 ```sh
 vault write \
     auth/kubernetes-spinnaker/config \
-    token_reviewer_jwt="$(cat .dynamic-accounts-vault-auth-sa-jwt-token)" \
-    kubernetes_host="$(cat .dynamic-accounts-vault-auth-k8s-host)" \
-    kubernetes_ca_cert="$(cat .dynamic-accounts-vault-auth-sa-ca-crt)"
+    token_reviewer_jwt="$(< .dynamic-accounts-vault-auth-sa-jwt-token)" \
+    kubernetes_host="$(< .dynamic-accounts-vault-auth-k8s-host)" \
+    kubernetes_ca_cert="$(< .dynamic-accounts-vault-auth-sa-ca-crt)"
 ```
 
 Create kubernetes service account to be used to write to the dynamic accounts secret
