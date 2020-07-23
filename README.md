@@ -463,7 +463,7 @@ kubernetes:
       omitKinds: []
       customResources: []
       cachingPolicies: []
-      kubeconfigContents: "{\"apiVersion\":\"v1\",\"clusters\":[{\"cluster\":{\"certificate-authority-data\":\"....REDACTED....\",\"server\":\"https://....REDACTED....\"},\"name\":\"....REDACTED....\"}],\"contexts\":[{\"context\":{\"cluster\":\"....REDACTED....\",\"namespace\":\"default\",\"user\":\"spinnaker-user\"},\"name\":\"....REDACTED....\"}],\"current-context\":\"....REDACTED....\",\"kind\":\"Config\",\"preferences\":{},\"users\":[{\"name\":\"spinnaker-user\",\"user\":{\"token\":\"....REDACTED....\"}}]}"
+      kubeconfigContents: "apiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: ....REDACTED....\n    server: https://....REDACTED....\n  name: ....REDACTED....\ncontexts:\n- context:\n    cluster: ....REDACTED....\n    namespace: default\n    user: spinnaker-user\n  name: ....REDACTED....\ncurrent-context: ....REDACTED....\nkind: Config\npreferences: {}\nusers:\n- name: spinnaker-user\n  user:\n    token: ....REDACTED...."
 ```
 
 So, once we convert to JSON for storage into vault we see this:
