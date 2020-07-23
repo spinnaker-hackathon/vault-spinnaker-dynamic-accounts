@@ -493,6 +493,7 @@ spring:
           default-key: spinnaker
           token: $VAULT_TOKEN
 EOF
+
 ```
 
 Once that file is added you can then do a `hal deploy apply` which should configure the Spinnaker deployment to use dynamic accounts vault secret for all supported account types (Kubernetes/Cloud Foundry)
