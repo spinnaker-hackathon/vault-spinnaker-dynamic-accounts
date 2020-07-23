@@ -499,6 +499,7 @@ Configure the address to your vault server in
 VAULT_ADDR="" # example would be VAULT_ADDR="https://vault.spinnaker.example.com"
 VAULT_TOKEN="" # example would be the value of the .dynamic-accounts-ro-token file we created above
 SPINNAKER_DEPLOYMENT_NAME="default" # change this is you are not deploying to deployment called default
+
 tee /path/to/halyard-directory/.hal/"$SPINNAKER_DEPLOYMENT_NAME"/profiles/spinnakerconfig.yml << EOF
 spring:
   profiles:
