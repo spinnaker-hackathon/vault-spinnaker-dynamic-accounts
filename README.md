@@ -19,11 +19,15 @@ The following instructions have been created to allow a Spinnaker Operator to co
 	- [Create policies for dynamic accounts](#create-policies-for-dynamic-accounts)
 	- [Create read-only app role for Spinnaker](#create-read-only-app-role-for-spinnaker)
 	- [Create read-write approle for Spinnaker](#create-read-write-approle-for-spinnaker)
+	- [Create write-only approle for Intake needs](#create-write-only-approle-for-intake-needs)
 	- [Setup Kubernetes Authentication within Vault](#setup-kubernetes-authentication-within-vault)
 		- [Description](#description)
 		- [Vault Kubernetes Authentication Installation Instructions](#vault-kubernetes-authentication-installation-instructions)
 	- [Populate the Vault Dynamic Account Secret](#populate-the-vault-dynamic-account-secret)
 - [Configure Spinnaker](#configure-spinnaker)
+- [Setup Dynamic Account Pipeline](#setup-dynamic-account-pipeline)
+- [Onboarding New Kubernetes Accounts](#onboarding-new-kubernetes-accounts)
+	- [Onboarding New Kubernetes Account Example using GKE Script](#onboarding-new-kubernetes-account-example-using-gke-script)
 <!-- /TOC -->
 
 ## Goals
@@ -32,7 +36,7 @@ The following instructions have been created to allow a Spinnaker Operator to co
 1. Configure Vault for Spinnaker dynamic accounts by creating secret stores, policies, roles, authentication methods, and AppRoles to be used for authentication
 1. Configure Spinnaker to utilize vault for dynamic accounts
 1. Create an example Terraform repo to create new infrastructure and add details into Vault secret
-1. Create Custom Job Stage from Run Job Manifest to facilitate adding new account into dynamic accounts by the Spinnaker Operators by pulling newly added infrastructure credentials to the master dynamic accounts credential list
+1. Create Pipeline with a Run Job Manifest to facilitate adding new account into dynamic accounts by the Spinnaker Operators by pulling newly added infrastructure credentials to the master dynamic accounts credential list
 
 ## Prerequisites
 
@@ -128,6 +132,7 @@ path "secret/data/dynamic_accounts/*" {
     capabilities = ["read", "list"]
 }
 VAULT_POLICY
+
 ```
 
 Create read-write vault policy for dynamic accounts
@@ -143,6 +148,23 @@ path "secret/data/dynamic_accounts/*" {
     capabilities = ["read", "list", "create", "update", "delete"]
 }
 VAULT_POLICY
+
+```
+
+Create write-only vault policy for intake of dynamic accounts
+
+```sh
+cat << VAULT_POLICY | vault policy write dynamic_accounts_wo_policy -
+# For K/V v1 secrets engine
+path "secret/dynamic_accounts/intake/*" {
+    capabilities = ["create"]
+}
+# For K/V v2 secrets engine
+path "secret/data/dynamic_accounts/intake/*" {
+    capabilities = ["create"]
+}
+VAULT_POLICY
+
 ```
 
 Enable approle authentication within Vault to generate token to be used by Spinnaker to access the dynamic accounts secret (NEVER USE THE ROOT TOKEN FOR ANYTHING OTHER THAN SETTING UP BETTER OPTIONS) and for approle to be used by 
@@ -219,6 +241,44 @@ vault write \
     secret_id="$(cat .dynamic-accounts-rw-role-secret-id)" \
     | jq -r '.auth.client_token' > .dynamic-accounts-rw-token
 ```
+
+### Create write-only approle for Intake needs
+
+Any vault token with this policy will only be able to add the credentials to a secret in the intake area
+
+```sh
+vault write \
+    auth/approle/role/dynamic_accounts_wo_role \
+    token_policies="dynamic_accounts_wo_policy" \
+    token_max_ttl="1600h" \
+    token_num_uses=0 \
+    secret_id_num_uses=0
+```
+Get role-id for dynamic accounts write-only approle
+
+```sh
+vault read -format=json auth/approle/role/dynamic_accounts_wo_role/role-id \
+    | jq -r '.data.role_id' > .dynamic-accounts-wo-role-id
+```
+
+Get secret-id for dynamic accounts write-only approle
+
+```sh
+vault write -format=json -force auth/approle/role/dynamic_accounts_wo_role/secret-id \
+    | jq -r '.data.secret_id' > .dynamic-accounts-wo-role-secret-id
+```
+
+Get a token for the write-only approle by using the role-id and the secret-id
+
+```sh
+vault write \
+    -format=json auth/approle/login \
+    role_id="$(cat .dynamic-accounts-wo-role-id)" \
+    secret_id="$(cat .dynamic-accounts-wo-role-secret-id)" \
+    | jq -r '.auth.client_token' > .dynamic-accounts-wo-token
+```
+
+We can take the token found inside the `.dynamic-accounts-wo-token` and use that for the purposes of adding new accounts like we will see [here](#onboarding-new-kubernetes-account-example-using-gke-script)
 
 ### Setup Kubernetes Authentication within Vault
 
@@ -523,4 +583,154 @@ Once that file is added you can then deploy like below which should configure th
 
 ```sh
 hal deploy apply
+```
+
+## Setup Dynamic Account Pipeline
+
+Assuming you have authentication (authn) and authorization (authz) configured and you are using Fiat for roles you would want to create an application like `spinnaker-dyn-accts` inside Spinnaker that has Read, Write, and Execute permissions set to a role (group) that only the Spinnaker Operators have access to like `spinnaker-operators` which we will use for the examples below. We also need a [Fiat service account](https://spinnaker.io/setup/security/authorization/service-accounts/) configured that is a member of that role as well.
+
+Create a new pipeline called `Add to Dynamic Accounts` or whatever name you would prefer under this application then click `Pipeline Actions` then `Edit as JSON`. Select all the JSON that is in there and replace it with the JSON below. IMPORTANT NOTE: You will need to change the following properties to what match your configuration:
+
+- `"credentials": "spin-cluster-account"` this should be whatever kubernetes account you want to run this Run Job, possibly on the Spinnaker account or possibly somewhere else
+- `"https://vault.spinnaker.example.com"` should be changed to match the URL for your vault server that we setup the kubernetes auth previously
+- `"runAsUser": "spinnaker-operators_member"` this should be set to the name of your Fiat service account that has permissions to the `spin-cluster-account` or whatever you changed it to above
+
+
+```json
+{
+  "keepWaitingPipelines": false,
+  "limitConcurrent": true,
+  "parameterConfig": [
+    {
+      "default": "",
+      "description": "Location of the vault secret to be used for intake",
+      "hasOptions": false,
+      "label": "Location of the vault secret to be used for intake",
+      "name": "intake_secret_loc",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": true,
+      "required": true
+    },
+    {
+      "default": "spinnaker-operators",
+      "description": "The list of comma separated roles that will have read access to this cloud resource",
+      "hasOptions": false,
+      "label": "Read permission roles",
+      "name": "read_permissions",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": true,
+      "required": true
+    },
+    {
+      "default": "spinnaker-operators",
+      "description": "The list of comma separated roles that will have write access to this cloud resource",
+      "hasOptions": false,
+      "label": "Write permission roles",
+      "name": "write_permissions",
+      "options": [
+        {
+          "value": ""
+        }
+      ],
+      "pinned": true,
+      "required": true
+    }
+  ],
+  "stages": [
+    {
+      "account": "spin-cluster-account",
+      "alias": "runJob",
+      "application": "spinnaker-dyn-accts",
+      "cloudProvider": "kubernetes",
+      "completeOtherBranchesThenFail": false,
+      "consumeArtifactSource": "propertyFile",
+      "continuePipeline": false,
+      "credentials": "spin-cluster-account",
+      "failPipeline": false,
+      "manifest": {
+        "apiVersion": "batch/v1",
+        "kind": "Job",
+        "metadata": {
+          "name": "vault-dynamic-accounts",
+          "namespace": "spinnaker"
+        },
+        "spec": {
+          "backoffLimit": 0,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "VAULT_DYNAMIC_ACCOUNT_SECRET_LOCATION",
+                      "value": "secret/dynamic_accounts/spinnaker"
+                    },
+                    {
+                      "name": "VAULT_INTAKE_ACCOUNT_SECRET_LOCATION",
+                      "value": "secret/dynamic_accounts/intake/${ parameters.intake_secret_loc }"
+                    },
+                    {
+                      "name": "VAULT_ADDR",
+                      "value": "https://vault.spinnaker.example.com"
+                    },
+                    {
+                      "name": "READ_PERMISSIONS",
+                      "value": "${ parameters.read_permissions }"
+                    },
+                    {
+                      "name": "WRITE_PERMISSIONS",
+                      "value": "${ parameters.write_permissions }"
+                    }
+                  ],
+                  "image": "devorbitus/vault-spinnaker-dynamic-accounts:latest",
+                  "name": "dyn-accts"
+                }
+              ],
+              "restartPolicy": "Never",
+              "serviceAccountName": "spinnaker-dyn-acct-rw"
+            }
+          }
+        }
+      },
+      "name": "Run Job (Manifest)",
+      "propertyFile": "dyn-accts",
+      "refId": "1",
+      "requisiteStageRefIds": [],
+      "source": "text",
+      "type": "runJobManifest"
+    }
+  ],
+  "triggers": [
+    {
+      "enabled": true,
+      "payloadConstraints": {},
+      "runAsUser": "spinnaker-operators_member",
+      "source": "spin-ops-dyn-accts",
+      "type": "webhook"
+    }
+  ]
+}
+```
+
+
+## Onboarding New Kubernetes Accounts
+
+### Onboarding New Kubernetes Account Example using GKE Script
+
+For this example we have created a [bash script](example-onboarding-script/gke-onboarding.sh) that uses the `gcloud` CLI to interface with a newly created Google Kubernetes Engine cluster. 
+
+We will assume you have already run the `gcloud` command from hitting the `Connect` button found next to your GKE cluster in the web console of Google Cloud Platform.
+
+```sh
+VAULT_TOKEN="" # set this to the contents of the .dynamic-accounts-wo-token file
+SPIN_WEBHOOK="" # set this to the webhook used in the Configuration section under Automated Triggers under the source field for the Webhook trigger
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/spinnaker-hackathon/vault-spinnaker-dynamic-accounts/master/example-onboarding-script/gke-onboarding.sh)"
 ```
