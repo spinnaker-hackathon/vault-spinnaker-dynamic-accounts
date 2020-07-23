@@ -10,8 +10,20 @@ if [ -z "$VAULT_INTAKE_ACCOUNT_SECRET_LOCATION" ]; then
     die "Need vault intake account secret location VAULT_INTAKE_ACCOUNT_SECRET_LOCATION to continue"
 fi
 
+if [ -z "$READ_PERMISSIONS" ]; then
+    die "Need at least 1 comma separated read permission role(s) READ_PERMISSIONS to continue"
+fi
+
+if [ -z "$WRITE_PERMISSIONS" ]; then
+    die "Need at least 1 comma separated write permission role(s) WRITE_PERMISSIONS to continue"
+fi
+
+if [ -z "$VAULT_HOME" ]; then
+    die "Need the url of vault set VAULT_HOME to continue"
+fi
+
 SVC_JWT="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
-VAULT_TOKEN="$(curl -s --request POST --data '{"jwt":"'"$SVC_JWT"'","role":"dynamic-account-rw-role"}' https://vault.spingo1.spingo.armory.io/v1/auth/kubernetes-spinnaker/login | jq -r '.auth.client_token')"
+VAULT_TOKEN="$(curl -s --request POST --data '{"jwt":"'"$SVC_JWT"'","role":"dynamic-account-rw-role"}' "$VAULT_HOME"/v1/auth/kubernetes-spinnaker/login | jq -r '.auth.client_token')"
 
 ./vault login -no-print=true "$VAULT_TOKEN" 
 ./vault read -format=json "$VAULT_DYNAMIC_ACCOUNT_SECRET_LOCATION" | jq -r '.data' > account-list.json
@@ -34,10 +46,10 @@ cat <<EOF > new-template-account.json
   "providerVersion": "V2",
   "permissions": {
     "READ": [
-      "spingo-spinnaker-admins"
+      $(echo "$READ_PERMISSIONS" | sed 's/,/\",\"/g' | sed 's/^/\"/g' | sed 's/$/\"/g')
     ],
     "WRITE": [
-      "spingo-spinnaker-admins"
+      $(echo "$WRITE_PERMISSIONS" | sed 's/,/\",\"/g' | sed 's/^/\"/g' | sed 's/$/\"/g')
     ]
   },
   "dockerRegistries": [
