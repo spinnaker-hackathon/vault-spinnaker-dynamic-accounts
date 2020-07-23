@@ -734,3 +734,7 @@ VAULT_TOKEN="" # set this to the contents of the .dynamic-accounts-wo-token file
 SPIN_WEBHOOK="" # set this to the webhook used in the Configuration section under Automated Triggers under the source field for the Webhook trigger
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/spinnaker-hackathon/vault-spinnaker-dynamic-accounts/master/example-onboarding-script/gke-onboarding.sh)"
 ```
+
+The last line of the above script should trigger the dynamic accounts pipeline we created to add the new account to the dynamic accounts vault secret.
+
+After the pipeline runs, the new account should soon be enabled and available for use
