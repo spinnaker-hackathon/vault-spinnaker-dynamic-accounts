@@ -467,3 +467,32 @@ cat << DYN_ACCT_START | vault kv put secret/dynamic_accounts/spinnaker -
 DYN_ACCT_START
 ```
 
+## Configure Spinnaker
+
+Now that we have our dynamic accounts secret properly configured we can configure Spinnaker to point to that secret to use for dynamic account purposes. Wherever we have run halyard to setup the account we need to access that deployment and add a new file. In the example code below we are still using the standard deployment name of default but if you are using a different location then use that name instead.
+
+Configure the address to your vault server in
+
+```sh
+VAULT_ADDR="" # example would be VAULT_ADDR="https://vault.spinnaker.example.com"
+VAULT_TOKEN="" # example would be the value of the .dynamic-accounts-ro-token file we created above
+SPINNAKER_DEPLOYMENT_NAME="default" # change this is you are not deploying to deployment called default
+tee /path/to/halyard-directory/.hal/"$SPINNAKER_DEPLOYMENT_NAME"/profiles/spinnakerconfig.yml << EOF
+spring:
+  profiles:
+    include: vault
+  cloud:
+    config:
+      server:
+        vault:
+          host: $VAULT_ADDR
+          port: 443
+          scheme: https
+          backend: secret/dynamic_accounts
+          kvVersion: 1
+          default-key: spinnaker
+          token: $VAULT_TOKEN
+EOF
+```
+
+Once that file is added you can then do a `hal deploy apply` which should configure the Spinnaker deployment to use dynamic accounts vault secret for all supported account types (Kubernetes/Cloud Foundry)
