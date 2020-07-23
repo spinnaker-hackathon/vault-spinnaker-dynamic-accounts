@@ -13,6 +13,37 @@ variable "gcp_project" {
   description = "GCP project name"
 }
 
+variable "k8s_name" {
+  type        = string
+  default = "new_cluster"
+  description = "GCP project name"
+}
+
+variable "gcp_region" {
+  type        = string
+  default = "us-east1"
+  description = "GCP project name"
+}
+
+variable "service_account_name" {
+  type        = string
+  default = "cs-spingo1"
+  description = "GCP project name"
+}
+
+variable "service_account_namespace" {
+  type        = string
+  default = "default"
+  description = "Service account namespace"
+}
+variable "host" {
+  type        = string
+  default = "new-cluster"
+  description = "k8s hostname"
+}
+
+
+
 # variable "managed_dns_gcp_project" {
 #   type        = string
 #   description = "GCP project name where the DNS managed zone lives"
