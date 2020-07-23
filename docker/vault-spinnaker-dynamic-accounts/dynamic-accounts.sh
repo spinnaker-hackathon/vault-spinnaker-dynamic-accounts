@@ -18,14 +18,22 @@ if [ -z "$WRITE_PERMISSIONS" ]; then
     die "Need at least 1 comma separated write permission role(s) WRITE_PERMISSIONS to continue"
 fi
 
-if [ -z "$VAULT_HOME" ]; then
-    die "Need the url of vault set VAULT_HOME to continue"
+if [ -z "$VAULT_ADDR" ]; then
+    die "Need the url of vault set VAULT_ADDR to continue"
 fi
 
 SVC_JWT="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
-VAULT_TOKEN="$(curl -s --request POST --data '{"jwt":"'"$SVC_JWT"'","role":"dynamic-account-rw-role"}' "$VAULT_HOME"/v1/auth/kubernetes-spinnaker/login | jq -r '.auth.client_token')"
+VAULT_TOKEN="$(curl -s --request POST --data '{"jwt":"'"$SVC_JWT"'","role":"dynamic-account-rw-role"}' "$VAULT_ADDR"/v1/auth/kubernetes-spinnaker/login | jq -r '.auth.client_token')"
 
 ./vault login -no-print=true "$VAULT_TOKEN" 
+
+if [ "$?" -eq 0 ]; then
+    echo "Successfully authenticated into vault using Kubernetes Auth"
+else
+    echo "Unable to Authenticate into Vault using Kubernetes Auth"
+    exit 1
+fi
+
 ./vault read -format=json "$VAULT_DYNAMIC_ACCOUNT_SECRET_LOCATION" | jq -r '.data' > account-list.json
 
 ./vault read -format=json "$VAULT_INTAKE_ACCOUNT_SECRET_LOCATION" | jq -r '.data' > new-account.json
